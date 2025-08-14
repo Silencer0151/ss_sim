@@ -1,0 +1,91 @@
+Phase 1: Basic 2D Simulation (The Core)
+
+The goal of this phase is to establish the fundamental physics and a simple visualization. This is the most critical part of the project.
+
+    Implement CelestialBody Class:
+
+        Create a simple data class to hold the properties of a celestial body (mass, position, velocity). This part of the code is already done with the boilerplate.
+
+    Populate the Simulation:
+
+        In your main.cpp file, add a few test bodies to the NBodySimulation instance, such as a large sun and a small earth.
+
+    Develop the Physics Loop:
+
+        In the NBodySimulation::step() method, write the code to calculate the gravitational force between your bodies and update their positions. Start with a simple scenario, like just two bodies, to ensure the physics is working correctly.
+
+    Create a Basic 2D Renderer:
+
+        In the SolarSystemWidget::paintEvent(), use QPainter to draw simple circles to represent the sun and planets based on their positions and radii. This provides a visual feedback loop for your physics.
+
+    Connect the Pieces:
+
+        Ensure the QTimer in NBodySimulation is correctly connected to the step() method and that the simulationStepCompleted() signal correctly triggers the updateView() slot in your widget.
+
+At the end of this phase, you should have a working 2D simulation where planets orbit realistically.
+
+Phase 2: Refined Physics and Interactive Controls
+
+With a working simulation, the next step is to make it more realistic and interactive.
+
+    Improve the Physics:
+
+        Implement a more stable numerical integration method, such as the Velocity Verlet method. While the simple method from Phase 1 might work, a more advanced method will provide more accurate orbits over a longer period.
+
+    Add all Solar System Planets:
+
+        Create and add all the planets in our solar system, with their real-world mass, initial position, and velocity data (you can find this data online).
+
+    Build a Basic UI:
+
+        Use Qt Widgets to add buttons for Play, Pause, and Time Warp. Connect these buttons to slots in your NBodySimulation class to control the QTimer.
+
+        For time warp, you can have buttons that adjust the timer's interval to speed up or slow down the simulation.
+
+Phase 3: Transition to 3D Visualization
+
+This is where the project starts to become "stunning." You will replace the 2D QPainter with a 3D rendering pipeline using OpenGL.
+
+    Switch to QOpenGLWidget:
+
+        Modify your SolarSystemWidget to inherit from QOpenGLWidget. This gives you an OpenGL rendering context.
+
+    Learn Basic OpenGL:
+
+        Familiarize yourself with core OpenGL concepts: shaders (GLSL), vertex buffer objects (VBOs), and matrix transformations (model, view, projection).
+
+    Implement the 3D Renderer:
+
+        Write an initializeGL() method to set up your OpenGL context.
+
+        In your paintGL() method, use shaders and VBOs to draw 3D spheres for each celestial body, using their QVector3D positions from the NBodySimulation.
+
+    Add a 3D Camera:
+
+        Implement a simple 3D camera class.
+
+        Use mouse and keyboard events in your widget to control the camera, allowing the user to pan, zoom, and orbit the solar system.
+
+Phase 4: Advanced Features and Polish
+
+This final phase adds the "wow" factor and prepares the project for distribution.
+
+    Introduce Asteroids:
+
+        Implement a feature to generate hundreds of asteroids with randomized initial positions and velocities, placing them in a specific region, such as between Jupiter and Earth. This will be a great test of your physics engine's performance.
+
+    Add Visual Effects:
+
+        Create a background starfield.
+
+        Implement optional orbital trail rendering to show the path of the planets over time.
+
+    Performance Optimization:
+
+        With a large number of bodies, your physics loop's performance will become a bottleneck (O(n2) complexity). Look into optimization techniques if necessary.
+
+    Final Polish and Distribution:
+
+        Create a polished user interface.
+
+        Follow the deployment process we discussed to create a standalone, distributable version of your application using windeployqt.
