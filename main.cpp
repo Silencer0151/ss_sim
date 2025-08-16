@@ -22,6 +22,15 @@ int main(int argc, char *argv[])
         Qt::yellow
     );
 
+    CelestialBody mercury(
+        5.972e24*0.0553,
+        QVector3D(1.5e11*0.459, 0, 0),
+        QVector3D(0, 2.98e4*1.327, 0),
+        6.37e6*0.383,
+        "Mercury",
+        Qt::lightGray
+    );
+
     //home
     CelestialBody earth(
         5.972e24,                   // mass in kg
@@ -33,6 +42,7 @@ int main(int argc, char *argv[])
     );
 
     simulation.addBody(sun);
+    simulation.addBody(mercury);
     simulation.addBody(earth);
 
     // Set up the window
