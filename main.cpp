@@ -1,4 +1,10 @@
 #include <QApplication>
+#include <QMainWindow>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QSlider>
+#include <QLabel>
 #include <QWidget>
 #include "src/visualization/SolarSystemWidget.h"
 #include "src/physics/NBodySimulation.h"
@@ -8,8 +14,41 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
+    // --- Main Window and Layouts ---
+    QMainWindow mainWindow;
+    QWidget *centralWidget = new QWidget;
+    QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+    QHBoxLayout *controlsLayout = new QHBoxLayout();
+
+    // --- Simulation and Visualization ---
     NBodySimulation simulation;
-    SolarSystemWidget window(&simulation);
+    SolarSystemWidget *solarSystemWidget = new SolarSystemWidget(&simulation);
+
+    // --- UI Controls ---
+    QPushButton *playButton = new QPushButton("Play");
+    QPushButton *pauseButton = new QPushButton("Pause");
+    QLabel *timeScaleLabel = new QLabel("Time Scale:");
+    QSlider *timeScaleSlider = new QSlider(Qt::Horizontal);
+    timeScaleSlider->setRange(0, 100);
+    timeScaleSlider->setValue(50); // Default to 1x speed
+    timeScaleSlider->setToolTip("Adjust simulation speed (0.01x to 100x)");
+
+    // --- Add Controls to Layout ---
+    controlsLayout->addWidget(playButton);
+    controlsLayout->addWidget(pauseButton);
+    controlsLayout->addSpacing(20);
+    controlsLayout->addWidget(timeScaleLabel);
+    controlsLayout->addWidget(timeScaleSlider);
+
+    // --- Assemble Main Layout ---
+    mainLayout->addWidget(solarSystemWidget);
+    mainLayout->addLayout(controlsLayout);
+
+    // --- Connect Signals and Slots ---
+    QObject::connect(playButton, &QPushButton::clicked, &simulation, &NBodySimulation::play);
+    QObject::connect(pauseButton, &QPushButton::clicked, &simulation, &NBodySimulation::pause);
+    QObject::connect(timeScaleSlider, &QSlider::valueChanged, &simulation, &NBodySimulation::setTimeScale);
+
 
     // Data from JPL Horizons for A.D. 2025-Aug-17 00:00:00.0000 TDB
     // All position and velocity units are converted from km to meters (* 1000)
@@ -204,10 +243,11 @@ int main(int argc, char *argv[])
     simulation.addBody(haumea);
     simulation.addBody(interamnia);
 
-    // Set up the window
-    window.setWindowTitle("Solar System Simulator");
-    window.resize(1000, 800);
-    window.show();
+    // --- Show Window and Start ---
+    mainWindow.setCentralWidget(centralWidget);
+    mainWindow.setWindowTitle("Solar System Simulator");
+    mainWindow.resize(1200, 900);
+    mainWindow.show();
 
     // Start the simulation timer
     simulation.start();

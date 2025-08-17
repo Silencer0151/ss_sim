@@ -4,6 +4,7 @@
 #include <QVector3D>
 #include <QString>
 #include <QColor>
+#include <deque>
 
 class CelestialBody
 {
@@ -27,6 +28,10 @@ public:
     void setPosition(const QVector3D& position) { m_position = position; }
     void setVelocity(const QVector3D& velocity) { m_velocity = velocity; }
 
+    // Methods for orbital trails
+    void addPositionToHistory(const QVector3D& position);
+    const std::deque<QVector3D>& getPositionHistory() const;
+
 private:
     double m_mass;
     QVector3D m_position;
@@ -34,6 +39,10 @@ private:
     double m_radius;
     QString m_name;
     QColor m_color;
+
+    // Store the last N positions for drawing trails
+    std::deque<QVector3D> m_positionHistory;
+    static const size_t MAX_HISTORY_SIZE = 2000;
 };
 
 #endif // CELESTIALBODY_H

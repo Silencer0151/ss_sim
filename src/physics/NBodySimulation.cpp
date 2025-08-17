@@ -4,24 +4,24 @@
 
 const double G = 6.67430e-11;
 
-// time step for sim in seconds
-// smaller is more accurate but slower
-const double dt = 3600; // 1 hour
-
 NBodySimulation::NBodySimulation(QObject* parent)
-    : QObject(parent)
+    : QObject(parent),
+      m_timeStep(3600), // Base time step is 1 hour
+      m_timeScale(1.0)  // Initial speed is 1x
 {
     // Set up a timer to drive the simulation loop
-    m_timer.setInterval(16); // ~60 FPS
+    m_timer.setInterval(16); // ~60 FPS for smooth animation
     connect(&m_timer, &QTimer::timeout, this, &NBodySimulation::step);
 }
 
-void NBodySimulation::addBody(const CelestialBody& body)
+// Note: The parameter is now a non-const reference to allow modification (e.g., adding history)
+void NBodySimulation::addBody(CelestialBody& body)
 {
     m_bodies.push_back(body);
 }
 
-const std::vector<CelestialBody>& NBodySimulation::getBodies() const
+// Note: The return type is now a non-const reference
+std::vector<CelestialBody>& NBodySimulation::getBodies()
 {
     return m_bodies;
 }
@@ -36,11 +36,30 @@ void NBodySimulation::stop()
     m_timer.stop();
 }
 
-// NBodySimulation.cpp
+void NBodySimulation::play()
+{
+    m_timer.start();
+}
+
+void NBodySimulation::pause()
+{
+    m_timer.stop();
+}
+
+void NBodySimulation::setTimeScale(int scalePercentage)
+{
+    // Use a logarithmic scale for better control over a wide range of speeds
+    // This maps the slider's 0-100 range to a time scale of 0.01x to 100x
+    // 50 on the slider will correspond to 1x speed.
+    double power = (static_cast<double>(scalePercentage) / 50.0) - 1.0;
+    m_timeScale = std::pow(10.0, power);
+}
+
 
 void NBodySimulation::step()
 {
-    // Store current and new accelerations for Velocity Verlet
+    double dt = m_timeStep * m_timeScale;
+
     std::vector<QVector3D> currentAccelerations;
     std::vector<QVector3D> newAccelerations;
 
@@ -60,16 +79,16 @@ void NBodySimulation::step()
         currentAccelerations.push_back(totalForce / m_bodies[i].getMass());
     }
 
-    // 2. Update positions based on current velocity and acceleration
-    // p(t + dt) = p(t) + v(t) * dt + 0.5 * a(t) * dt^2
+    // 2. Update positions and add to history
     for (size_t i = 0; i < m_bodies.size(); ++i) {
         QVector3D newPosition = m_bodies[i].getPosition() +
                                 m_bodies[i].getVelocity() * dt +
                                 0.5 * currentAccelerations[i] * dt * dt;
         m_bodies[i].setPosition(newPosition);
+        m_bodies[i].addPositionToHistory(newPosition); // Add to trail history
     }
 
-    // 3. Second pass: calculate new accelerations (a(t + dt)) based on new positions
+    // 3. Second pass: calculate new accelerations (a(t + dt))
     for (size_t i = 0; i < m_bodies.size(); ++i) {
         QVector3D totalForce(0, 0, 0);
         for (size_t j = 0; j < m_bodies.size(); ++j) {
@@ -85,8 +104,7 @@ void NBodySimulation::step()
         newAccelerations.push_back(totalForce / m_bodies[i].getMass());
     }
 
-    // 4. Update velocities based on the average of current and new accelerations
-    // v(t + dt) = v(t) + 0.5 * (a(t) + a(t + dt)) * dt
+    // 4. Update velocities
     for (size_t i = 0; i < m_bodies.size(); ++i) {
         QVector3D newVelocity = m_bodies[i].getVelocity() +
                                 0.5 * (currentAccelerations[i] + newAccelerations[i]) * dt;
