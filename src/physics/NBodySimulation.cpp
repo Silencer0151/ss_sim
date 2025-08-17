@@ -36,42 +36,62 @@ void NBodySimulation::stop()
     m_timer.stop();
 }
 
+// NBodySimulation.cpp
+
 void NBodySimulation::step()
 {
-    std::vector<QVector3D> newPositions;
-    std::vector<QVector3D> newVelocities;
+    // Store current and new accelerations for Velocity Verlet
+    std::vector<QVector3D> currentAccelerations;
+    std::vector<QVector3D> newAccelerations;
 
-    // First pass: calculate forces and new velocities/positions
+    // 1. First pass: calculate current accelerations (a(t))
     for (size_t i = 0; i < m_bodies.size(); ++i) {
         QVector3D totalForce(0, 0, 0);
         for (size_t j = 0; j < m_bodies.size(); ++j) {
             if (i == j) continue;
-
             QVector3D r = m_bodies[j].getPosition() - m_bodies[i].getPosition();
             double r_sq = QVector3D::dotProduct(r, r);
-            
-            // Check for r_sq being zero to prevent division by zero
-            if (r_sq == 0.0) continue; 
-            
+            if (r_sq == 0.0) continue;
             double r_mag = std::sqrt(r_sq);
             double F_mag = (G * m_bodies[i].getMass() * m_bodies[j].getMass()) / r_sq;
             QVector3D F = (F_mag / r_mag) * r;
             totalForce += F;
         }
-
-        QVector3D acceleration = totalForce / m_bodies[i].getMass();
-        QVector3D newVelocity = m_bodies[i].getVelocity() + acceleration * dt;
-        QVector3D newPosition = m_bodies[i].getPosition() + newVelocity * dt; // Using new velocity for better accuracy
-
-        newPositions.push_back(newPosition);
-        newVelocities.push_back(newVelocity);
+        currentAccelerations.push_back(totalForce / m_bodies[i].getMass());
     }
-    
-    // Second pass: apply the calculated updates
+
+    // 2. Update positions based on current velocity and acceleration
+    // p(t + dt) = p(t) + v(t) * dt + 0.5 * a(t) * dt^2
     for (size_t i = 0; i < m_bodies.size(); ++i) {
-        m_bodies[i].setPosition(newPositions[i]);
-        m_bodies[i].setVelocity(newVelocities[i]);
+        QVector3D newPosition = m_bodies[i].getPosition() +
+                                m_bodies[i].getVelocity() * dt +
+                                0.5 * currentAccelerations[i] * dt * dt;
+        m_bodies[i].setPosition(newPosition);
     }
-    
+
+    // 3. Second pass: calculate new accelerations (a(t + dt)) based on new positions
+    for (size_t i = 0; i < m_bodies.size(); ++i) {
+        QVector3D totalForce(0, 0, 0);
+        for (size_t j = 0; j < m_bodies.size(); ++j) {
+            if (i == j) continue;
+            QVector3D r = m_bodies[j].getPosition() - m_bodies[i].getPosition();
+            double r_sq = QVector3D::dotProduct(r, r);
+            if (r_sq == 0.0) continue;
+            double r_mag = std::sqrt(r_sq);
+            double F_mag = (G * m_bodies[i].getMass() * m_bodies[j].getMass()) / r_sq;
+            QVector3D F = (F_mag / r_mag) * r;
+            totalForce += F;
+        }
+        newAccelerations.push_back(totalForce / m_bodies[i].getMass());
+    }
+
+    // 4. Update velocities based on the average of current and new accelerations
+    // v(t + dt) = v(t) + 0.5 * (a(t) + a(t + dt)) * dt
+    for (size_t i = 0; i < m_bodies.size(); ++i) {
+        QVector3D newVelocity = m_bodies[i].getVelocity() +
+                                0.5 * (currentAccelerations[i] + newAccelerations[i]) * dt;
+        m_bodies[i].setVelocity(newVelocity);
+    }
+
     emit simulationStepCompleted();
 }
