@@ -23,6 +23,7 @@ public slots:
     void play();
     void pause();
     void setTimeScale(int scalePercentage); // slider for 0-100
+    void setTimeScaleAlternative(int scalePercentage);
     
 signals:
     void simulationStepCompleted();

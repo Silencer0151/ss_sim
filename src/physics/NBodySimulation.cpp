@@ -48,13 +48,50 @@ void NBodySimulation::pause()
 
 void NBodySimulation::setTimeScale(int scalePercentage)
 {
-    // Use a logarithmic scale for better control over a wide range of speeds
-    // This maps the slider's 0-100 range to a time scale of 0.01x to 100x
-    // 50 on the slider will correspond to 1x speed.
-    double power = (static_cast<double>(scalePercentage) / 50.0) - 1.0;
-    m_timeScale = std::pow(10.0, power);
+    // New logarithmic scale for much wider speed range
+    // Maps slider 0-100 to time scales from 0.1x to 100,000x
+    // 0   = 0.1x     (very slow)
+    // 25  = 10x      (slow)
+    // 50  = 1000x    (medium - good for inner planets)
+    // 75  = 10000x   (fast - good for outer planets)  
+    // 100 = 100000x  (very fast - see Pluto orbit)
+    
+    if (scalePercentage == 0) {
+        m_timeScale = 0.1;  // Minimum speed
+    } else {
+        // Exponential scaling from 0.1x to 100,000x
+        double normalizedValue = scalePercentage / 100.0;  // 0 to 1
+        double power = normalizedValue * 6.0 - 1.0;  // -1 to 5
+        m_timeScale = std::pow(10.0, power);
+    }
+    
+    qDebug() << "Time scale set to:" << m_timeScale << "x";
 }
 
+void NBodySimulation::setTimeScaleAlternative(int scalePercentage)
+{
+    // Piecewise mapping for more intuitive control
+    if (scalePercentage < 10) {
+        // 0-10: Very slow (0.1x to 1x)
+        m_timeScale = 0.1 + (scalePercentage / 10.0) * 0.9;
+    } else if (scalePercentage < 30) {
+        // 10-30: Slow (1x to 100x)
+        double t = (scalePercentage - 10) / 20.0;
+        m_timeScale = 1.0 + t * 99.0;
+    } else if (scalePercentage < 60) {
+        // 30-60: Medium (100x to 5000x) - good for inner planets
+        double t = (scalePercentage - 30) / 30.0;
+        m_timeScale = 100.0 + t * 4900.0;
+    } else if (scalePercentage < 85) {
+        // 60-85: Fast (5000x to 50000x) - good for outer planets
+        double t = (scalePercentage - 60) / 25.0;
+        m_timeScale = 5000.0 + t * 45000.0;
+    } else {
+        // 85-100: Very fast (50000x to 500000x) - for seeing Pluto/Eris
+        double t = (scalePercentage - 85) / 15.0;
+        m_timeScale = 50000.0 + t * 450000.0;
+    }
+}
 
 void NBodySimulation::step()
 {

@@ -30,8 +30,8 @@ int main(int argc, char *argv[])
     QLabel *timeScaleLabel = new QLabel("Time Scale:");
     QSlider *timeScaleSlider = new QSlider(Qt::Horizontal);
     timeScaleSlider->setRange(0, 100);
-    timeScaleSlider->setValue(50); // Default to 1x speed
-    timeScaleSlider->setToolTip("Adjust simulation speed (0.01x to 100x)");
+    timeScaleSlider->setValue(30); // Start at a moderate speed instead of 50
+    timeScaleSlider->setToolTip("Adjust simulation speed (0.1x to 100,000x)");
 
     // --- Add Controls to Layout ---
     controlsLayout->addWidget(playButton);
