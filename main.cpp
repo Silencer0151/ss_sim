@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     QObject::connect(pauseButton, &QPushButton::clicked, &simulation, &NBodySimulation::pause);
     QObject::connect(timeScaleSlider, &QSlider::valueChanged, &simulation, &NBodySimulation::setTimeScale);
 
-
+    
     // Data from JPL Horizons for A.D. 2025-Aug-17 00:00:00.0000 TDB
     // All position and velocity units are converted from km to meters (* 1000)
 

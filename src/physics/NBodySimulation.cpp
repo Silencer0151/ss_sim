@@ -6,8 +6,10 @@ const double G = 6.67430e-11;
 
 NBodySimulation::NBodySimulation(QObject* parent)
     : QObject(parent),
-      m_timeStep(3600), // Base time step is 1 hour
-      m_timeScale(1.0)  // Initial speed is 1x
+      m_baseTimeStep(3600),     // Base time unit: 1 hour
+      m_timeScale(1.0),         // Initial speed multiplier
+      m_maxTimeStep(3600 * 24), // Maximum safe timestep: 1 day
+      m_subSteps(1)             // Initial substeps
 {
     // Set up a timer to drive the simulation loop
     m_timer.setInterval(16); // ~60 FPS for smooth animation
@@ -57,15 +59,20 @@ void NBodySimulation::setTimeScale(int scalePercentage)
     // 100 = 100000x  (very fast - see Pluto orbit)
     
     if (scalePercentage == 0) {
-        m_timeScale = 0.1;  // Minimum speed
+        m_timeScale = 0.1;
     } else {
-        // Exponential scaling from 0.1x to 100,000x
-        double normalizedValue = scalePercentage / 100.0;  // 0 to 1
-        double power = normalizedValue * 6.0 - 1.0;  // -1 to 5
+        double normalizedValue = scalePercentage / 100.0;
+        double power = normalizedValue * 6.0 - 1.0;
         m_timeScale = std::pow(10.0, power);
     }
     
-    qDebug() << "Time scale set to:" << m_timeScale << "x";
+    // Calculate how many substeps we need to maintain stability
+    // We want to advance (m_baseTimeStep * m_timeScale) seconds per frame
+    // But each substep should not exceed m_maxTimeStep
+    double totalTimePerFrame = m_baseTimeStep * m_timeScale;
+    m_subSteps = std::max(1, static_cast<int>(std::ceil(totalTimePerFrame / m_maxTimeStep)));
+    
+    qDebug() << "Time scale:" << m_timeScale << "x, Substeps:" << m_subSteps;
 }
 
 void NBodySimulation::setTimeScaleAlternative(int scalePercentage)
@@ -95,58 +102,68 @@ void NBodySimulation::setTimeScaleAlternative(int scalePercentage)
 
 void NBodySimulation::step()
 {
-    double dt = m_timeStep * m_timeScale;
+    // Calculate the actual timestep for each substep
+    double totalTimePerFrame = m_baseTimeStep * m_timeScale;
+    double dt = totalTimePerFrame / m_subSteps;
+    
+    // Perform multiple small steps instead of one large step
+    for (int substep = 0; substep < m_subSteps; ++substep) {
+        std::vector<QVector3D> currentAccelerations;
+        std::vector<QVector3D> newAccelerations;
 
-    std::vector<QVector3D> currentAccelerations;
-    std::vector<QVector3D> newAccelerations;
-
-    // 1. First pass: calculate current accelerations (a(t))
-    for (size_t i = 0; i < m_bodies.size(); ++i) {
-        QVector3D totalForce(0, 0, 0);
-        for (size_t j = 0; j < m_bodies.size(); ++j) {
-            if (i == j) continue;
-            QVector3D r = m_bodies[j].getPosition() - m_bodies[i].getPosition();
-            double r_sq = QVector3D::dotProduct(r, r);
-            if (r_sq == 0.0) continue;
-            double r_mag = std::sqrt(r_sq);
-            double F_mag = (G * m_bodies[i].getMass() * m_bodies[j].getMass()) / r_sq;
-            QVector3D F = (F_mag / r_mag) * r;
-            totalForce += F;
+        // 1. First pass: calculate current accelerations (a(t))
+        for (size_t i = 0; i < m_bodies.size(); ++i) {
+            QVector3D totalForce(0, 0, 0);
+            for (size_t j = 0; j < m_bodies.size(); ++j) {
+                if (i == j) continue;
+                QVector3D r = m_bodies[j].getPosition() - m_bodies[i].getPosition();
+                double r_sq = QVector3D::dotProduct(r, r);
+                if (r_sq < 1e6) continue; // Avoid singularity (1km minimum distance)
+                double r_mag = std::sqrt(r_sq);
+                double F_mag = (G * m_bodies[i].getMass() * m_bodies[j].getMass()) / r_sq;
+                QVector3D F = (F_mag / r_mag) * r;
+                totalForce += F;
+            }
+            currentAccelerations.push_back(totalForce / m_bodies[i].getMass());
         }
-        currentAccelerations.push_back(totalForce / m_bodies[i].getMass());
-    }
 
-    // 2. Update positions and add to history
-    for (size_t i = 0; i < m_bodies.size(); ++i) {
-        QVector3D newPosition = m_bodies[i].getPosition() +
-                                m_bodies[i].getVelocity() * dt +
-                                0.5 * currentAccelerations[i] * dt * dt;
-        m_bodies[i].setPosition(newPosition);
-        m_bodies[i].addPositionToHistory(newPosition); // Add to trail history
-    }
-
-    // 3. Second pass: calculate new accelerations (a(t + dt))
-    for (size_t i = 0; i < m_bodies.size(); ++i) {
-        QVector3D totalForce(0, 0, 0);
-        for (size_t j = 0; j < m_bodies.size(); ++j) {
-            if (i == j) continue;
-            QVector3D r = m_bodies[j].getPosition() - m_bodies[i].getPosition();
-            double r_sq = QVector3D::dotProduct(r, r);
-            if (r_sq == 0.0) continue;
-            double r_mag = std::sqrt(r_sq);
-            double F_mag = (G * m_bodies[i].getMass() * m_bodies[j].getMass()) / r_sq;
-            QVector3D F = (F_mag / r_mag) * r;
-            totalForce += F;
+        // 2. Update positions
+        for (size_t i = 0; i < m_bodies.size(); ++i) {
+            QVector3D newPosition = m_bodies[i].getPosition() +
+                                    m_bodies[i].getVelocity() * dt +
+                                    0.5 * currentAccelerations[i] * dt * dt;
+            m_bodies[i].setPosition(newPosition);
+            
+            // Only add to history on the last substep to avoid too many points
+            if (substep == m_subSteps - 1) {
+                m_bodies[i].addPositionToHistory(newPosition);
+            }
         }
-        newAccelerations.push_back(totalForce / m_bodies[i].getMass());
-    }
 
-    // 4. Update velocities
-    for (size_t i = 0; i < m_bodies.size(); ++i) {
-        QVector3D newVelocity = m_bodies[i].getVelocity() +
-                                0.5 * (currentAccelerations[i] + newAccelerations[i]) * dt;
-        m_bodies[i].setVelocity(newVelocity);
+        // 3. Second pass: calculate new accelerations (a(t + dt))
+        for (size_t i = 0; i < m_bodies.size(); ++i) {
+            QVector3D totalForce(0, 0, 0);
+            for (size_t j = 0; j < m_bodies.size(); ++j) {
+                if (i == j) continue;
+                QVector3D r = m_bodies[j].getPosition() - m_bodies[i].getPosition();
+                double r_sq = QVector3D::dotProduct(r, r);
+                if (r_sq < 1e6) continue; // Avoid singularity
+                double r_mag = std::sqrt(r_sq);
+                double F_mag = (G * m_bodies[i].getMass() * m_bodies[j].getMass()) / r_sq;
+                QVector3D F = (F_mag / r_mag) * r;
+                totalForce += F;
+            }
+            newAccelerations.push_back(totalForce / m_bodies[i].getMass());
+        }
+
+        // 4. Update velocities
+        for (size_t i = 0; i < m_bodies.size(); ++i) {
+            QVector3D newVelocity = m_bodies[i].getVelocity() +
+                                    0.5 * (currentAccelerations[i] + newAccelerations[i]) * dt;
+            m_bodies[i].setVelocity(newVelocity);
+        }
     }
 
     emit simulationStepCompleted();
 }
+
