@@ -5,6 +5,7 @@
 #include <QString>
 #include <QColor>
 #include <deque>
+#include <vector> // Include the vector header
 
 class CelestialBody
 {
@@ -31,6 +32,9 @@ public:
     // Methods for orbital trails
     void addPositionToHistory(const QVector3D& position);
     const std::deque<QVector3D>& getPositionHistory() const;
+    
+    // Method to get the full orbital path
+    const std::vector<QVector3D>& getFullOrbitTrace() const;
 
 private:
     double m_mass;
@@ -40,9 +44,12 @@ private:
     QString m_name;
     QColor m_color;
 
-    // Store the last N positions for drawing trails
+    // For the short, fading trail
     std::deque<QVector3D> m_positionHistory;
     static const size_t MAX_HISTORY_SIZE = 2000;
+
+    // For the full, persistent orbital trace
+    std::vector<QVector3D> m_fullOrbitTrace;
 };
 
 #endif // CELESTIALBODY_H

@@ -15,21 +15,29 @@ CelestialBody::CelestialBody(
     m_name(name),
     m_color(color)
 {
-    // Initialize the history with the starting position
+    // Initialize both history types with the starting position
     addPositionToHistory(position);
 }
 
 void CelestialBody::addPositionToHistory(const QVector3D& position)
 {
+    // Add to the short-term fading trail
     m_positionHistory.push_back(position);
-
-    // Keep the history deque from growing indefinitely
     if (m_positionHistory.size() > MAX_HISTORY_SIZE) {
         m_positionHistory.pop_front();
     }
+
+    // Add to the long-term full orbit trace
+    m_fullOrbitTrace.push_back(position);
 }
 
 const std::deque<QVector3D>& CelestialBody::getPositionHistory() const
 {
     return m_positionHistory;
+}
+
+// Getter for the full orbit trace
+const std::vector<QVector3D>& CelestialBody::getFullOrbitTrace() const
+{
+    return m_fullOrbitTrace;
 }

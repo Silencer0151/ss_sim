@@ -30,6 +30,9 @@ private:
     double m_scale;         // How many meters one pixel represents
     QPointF m_viewOffset;   // The offset of the view center from the widget center
     QPoint m_lastMousePos;  // For calculating panning delta
+
+    //Variable to track the selected body by its index in the vector
+    int m_selectedBodyIndex;
 };
 
 #endif // SOLARSYSTEMWIDGET_H
